@@ -21,6 +21,13 @@ type TimeoutCheck struct {
  * @param2 timeout: 超时时间
  */
 func NewTimeoutCheck(interval, timeout time.Duration)*TimeoutCheck {
+	if interval <= 0{
+		interval = 10 * time.Second
+	}
+	if timeout <= 0{
+		timeout = 60 * time.Second
+	}
+
 	tc := &TimeoutCheck{}
 	tc.interval = interval
 	tc.timeout = timeout

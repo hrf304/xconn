@@ -21,8 +21,11 @@ type DataTransport struct {
  * @param2 cap: 数据队列容量
  */
 func NewDataTransport(cc, cap int)*DataTransport{
-	if cap < 0 || cc <= 0{
-		glog.Errorln("参数错误, cap=", cap, "cc=", cc)
+	if cc <= 0{
+		cc = 1
+	}
+	if cap <= 0 {
+		cap = 1000
 	}
 	dt := &DataTransport{}
 	dt.dataChans = make([]chan interface{}, cc)

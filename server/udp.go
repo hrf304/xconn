@@ -35,6 +35,9 @@ func newUdpConn(conn *net.UDPConn, addr *net.UDPAddr, config *common.Config)*Udp
 	ci.receiver = tools.NewDataTransport(1, config.RecvChanSize)
 	ci.done = make(chan bool, 1)
 	ci.timeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
+	if config.BufSize <= 0{
+		config.BufSize = 1024
+	}
 	ci.recvBufSize = config.BufSize
 	ci.connCallback = config.ConnCallback
 	ci.label = config.Label
