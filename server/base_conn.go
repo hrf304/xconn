@@ -18,8 +18,8 @@ type baseConn struct {
 	done          chan bool            // 标识是否完成
 	recvBufSize   int                  // 接收缓冲区大小
 	connCallback  common.ConnCallback  // 服务端
-	getter        common.Getter        // 数据获取（分包器）
-	parser        common.Parser        // 包解析器
+	dataSplitter  common.DataSplitter  // 数据获取（分包器）
+	packetHandler common.PacketHandler // 包解析器
 	label         string               // 标签
 	tag           sync.Map             // 自定义数据
 	iconn         common.IConn
@@ -110,8 +110,8 @@ func (cl *baseConn)startDataProcess(){
 	cl.receiver.Consume(func(data interface{}) bool {
 		if data != nil{
 			if bytess, ok := data.([]byte); ok{
-				if cl.parser != nil{
-					cl.parser.Parse(bytess, cl.iconn)
+				if cl.packetHandler != nil{
+					cl.packetHandler.Handle(bytess, cl.iconn)
 				}
 			}
 		}

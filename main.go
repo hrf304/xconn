@@ -16,12 +16,12 @@ func main() {
 	config.SendChanSize = 1000
 	config.Timeout = time.Second * 60
 	config.Interval = time.Second * 5
-	config.Getter = nil		// udp 下getter不用
+	config.DataSplitter = nil		// udp 下getter不用
 	config.Port = 5060
 	config.Ip = ""
 	config.Label = "gb28181"
 	config.BufSize = 65535
-	config.Parser = &TestParser{}
+	config.PacketHandler = &TestParser{}
 
 	svr := server.NewServer(config)
 	svr.Start()
@@ -61,5 +61,5 @@ type TestParser struct{
 
 }
 
-func (p *TestParser)Parse(data []byte, con common.IConn) {
+func (p *TestParser)Handle(data []byte, con common.IConn) {
 }

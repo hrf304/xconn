@@ -41,7 +41,8 @@ func newUdpConn(conn *net.UDPConn, addr *net.UDPAddr, config *common.Config)*Udp
 	ci.recvBufSize = config.BufSize
 	ci.connCallback = config.ConnCallback
 	ci.label = config.Label
-	ci.parser = config.Parser
+	ci.dataSplitter = config.DataSplitter
+	ci.packetHandler = config.PacketHandler
 	ci.iconn = ci
 
 	return ci

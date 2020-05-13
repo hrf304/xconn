@@ -33,8 +33,8 @@ func newTcpConn(conn net.Conn, config *common.Config)*TcpConn {
 	}
 	ci.recvBufSize = config.BufSize
 	ci.connCallback = config.ConnCallback
-	ci.getter = config.Getter
-	ci.parser = config.Parser
+	ci.dataSplitter = config.DataSplitter
+	ci.packetHandler = config.PacketHandler
 	ci.label = config.Label
 	ci.iconn = ci
 
@@ -124,8 +124,8 @@ func (cl *TcpConn)startRecvProcess(){
 			// 处理数据
 			cl.timeoutCheck.Tick()
 
-			if cl.getter != nil {
-				ps, left, err := cl.getter.Get(ringBuf.Bytes(), cl)
+			if cl.dataSplitter != nil {
+				ps, left, err := cl.dataSplitter.Split(ringBuf.Bytes(), cl)
 				if err != nil {
 					glog.Errorln("getter get err", err.Error())
 					ringBuf.Reset()

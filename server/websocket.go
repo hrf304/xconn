@@ -46,8 +46,8 @@ func newWsConn(conn *websocket.Conn, ctx *gin.Context, config *common.Config, pa
 	ci.recvBufSize = config.BufSize
 	ci.connCallback = config.ConnCallback
 	ci.label = config.Label
-	ci.getter = config.Getter
-	ci.parser = config.Parser
+	ci.dataSplitter = config.DataSplitter
+	ci.packetHandler = config.PacketHandler
 	ci.remoteAddress = conn.RemoteAddr().String()
 	ci.localAddr = conn.LocalAddr().String()
 	ci.iconn = ci
