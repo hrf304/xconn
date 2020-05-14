@@ -14,7 +14,7 @@ import (
  * @brief: 连接
  */
 type WsConn struct {
-	baseConn
+	common.BaseConn
 	conn         *websocket.Conn      // 连接
 	ginCtx       *gin.Context         // 当前连接上下文
 	path         string               // 连接对应路径
@@ -35,22 +35,22 @@ func newWsConn(conn *websocket.Conn, ctx *gin.Context, config *common.Config, pa
 		path:    path,
 		msgType: msgType,
 	}
-	ci.id = uuid.New().String()
-	ci.sender = tools.NewDataTransport(1, config.SendChanSize)
-	ci.receiver = tools.NewDataTransport(1, config.RecvChanSize)
-	ci.done = make(chan bool, 1)
-	ci.timeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
+	ci.Id = uuid.New().String()
+	ci.Sender = tools.NewDataTransport(1, config.SendChanSize)
+	ci.Receiver = tools.NewDataTransport(1, config.RecvChanSize)
+	ci.Done = make(chan bool, 1)
+	ci.TimeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
 	if config.BufSize <= 0{
 		config.BufSize = 1024
 	}
-	ci.recvBufSize = config.BufSize
-	ci.connCallback = config.ConnCallback
-	ci.label = config.Label
-	ci.dataSplitter = config.DataSplitter
-	ci.packetHandler = config.PacketHandler
-	ci.remoteAddress = conn.RemoteAddr().String()
-	ci.localAddr = conn.LocalAddr().String()
-	ci.iconn = ci
+	ci.RecvBufSize = config.BufSize
+	ci.ConnCallback = config.ConnCallback
+	ci.Label = config.Label
+	ci.DataSplitter = config.DataSplitter
+	ci.PacketHandler = config.PacketHandler
+	ci.RemoteAddress = conn.RemoteAddr().String()
+	ci.LocalAddr = conn.LocalAddr().String()
+	ci.IConn = ci
 
 	return ci
 }
@@ -65,26 +65,26 @@ func (cl *WsConn)Start() {
 			cl.Close()
 		}()
 
-		cl.startDataProcess()
+		cl.StartDataProcess()
 		cl.startSendProcess()
 		cl.startRecvProcess()
 
-		if cl.connCallback != nil {
+		if cl.ConnCallback != nil {
 			// 新连接回调
-			cl.connCallback.OnConnected(cl)
+			cl.ConnCallback.OnConnected(cl)
 		}
 
-		<-cl.done
+		<-cl.Done
 
-		if cl.connCallback != nil {
+		if cl.ConnCallback != nil {
 			// 关闭回调
-			cl.connCallback.OnDisconnected(cl)
+			cl.ConnCallback.OnDisconnected(cl)
 		}
 	}()
 }
 
 func (cl *WsConn)Close(){
-	cl.baseConn.Close()
+	cl.Close()
 
 	if cl.conn != nil{
 		cl.conn.Close()
@@ -114,13 +114,13 @@ func (cl *WsConn)GetPath()string{
  * @brief: 发送处理流程
  */
 func (cl *WsConn)startSendProcess() {
-	cl.sender.Consume(func(data interface{}) bool {
+	cl.Sender.Consume(func(data interface{}) bool {
 		if data != nil{
 			if bytess, ok := data.([]byte); ok{
 				cl.conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
 				if err := cl.conn.WriteMessage(cl.msgType, bytess); err != nil {
 					glog.Errorln("conn.Write", err.Error())
-					cl.done <- true
+					cl.Done <- true
 					return false
 				}else{
 					//glog.Infoln("-------------->发送成功")
@@ -138,24 +138,24 @@ func (cl *WsConn)startSendProcess() {
 func (cl *WsConn)startRecvProcess() {
 	go func() {
 		defer func() {
-			cl.done <- true
+			cl.Done <- true
 		}()
 
 		for {
 			_, data, err := cl.conn.ReadMessage() // 读取数据
 			if err != nil {
-				glog.Errorln(cl.label, "读取客户端数据错误:", err.Error())
-				if cl.connCallback != nil {
+				glog.Errorln(cl.Label, "读取客户端数据错误:", err.Error())
+				if cl.ConnCallback != nil {
 					// 新连接回调
-					cl.connCallback.OnError(cl, err)
+					cl.ConnCallback.OnError(cl, err)
 				}
 				break
 			}
 
 			// 处理数据
-			cl.timeoutCheck.Tick()
+			cl.TimeoutCheck.Tick()
 			// websocket 不需要处理粘包问题
-			cl.receiver.Produce(data)
+			cl.Receiver.Produce(data)
 		}
 	}()
 }

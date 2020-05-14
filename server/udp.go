@@ -13,9 +13,9 @@ import (
  * @brief: 连接
  */
 type UdpConn struct {
-	baseConn
-	udpAddr      *net.UDPAddr         // udp地址
-	conn         *net.UDPConn         // 连接
+	common.BaseConn
+	UdpAddr      *net.UDPAddr         // udp地址
+	Conn         *net.UDPConn         // 连接
 }
 
 
@@ -25,25 +25,25 @@ func newUdpConn(conn *net.UDPConn, addr *net.UDPAddr, config *common.Config)*Udp
 	addrstr := addr.String()
 	glog.Infoln(addrstr, localAddr)
 	ci := &UdpConn{
-		conn:    conn,
-		udpAddr: addr,
+		Conn:    conn,
+		UdpAddr: addr,
 	}
-	ci.id = uuid.New().String()
-	ci.remoteAddress = addr.String()
-	ci.localAddr = conn.LocalAddr().String()
-	ci.sender = tools.NewDataTransport(1, config.SendChanSize)
-	ci.receiver = tools.NewDataTransport(1, config.RecvChanSize)
-	ci.done = make(chan bool, 1)
-	ci.timeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
+	ci.Id = uuid.New().String()
+	ci.RemoteAddress = addr.String()
+	ci.LocalAddr = conn.LocalAddr().String()
+	ci.Sender = tools.NewDataTransport(1, config.SendChanSize)
+	ci.Receiver = tools.NewDataTransport(1, config.RecvChanSize)
+	ci.Done = make(chan bool, 1)
+	ci.TimeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
 	if config.BufSize <= 0{
 		config.BufSize = 1024
 	}
-	ci.recvBufSize = config.BufSize
-	ci.connCallback = config.ConnCallback
-	ci.label = config.Label
-	ci.dataSplitter = config.DataSplitter
-	ci.packetHandler = config.PacketHandler
-	ci.iconn = ci
+	ci.RecvBufSize = config.BufSize
+	ci.ConnCallback = config.ConnCallback
+	ci.Label = config.Label
+	ci.DataSplitter = config.DataSplitter
+	ci.PacketHandler = config.PacketHandler
+	ci.IConn = ci
 
 	return ci
 }
@@ -55,19 +55,19 @@ func (cl *UdpConn)Start(){
 			cl.Close()
 		}()
 
-		cl.startDataProcess()
+		cl.StartDataProcess()
 		cl.startSendProcess()
 
-		if cl.connCallback != nil {
+		if cl.ConnCallback != nil {
 			// 新连接回调
-			cl.connCallback.OnConnected(cl)
+			cl.ConnCallback.OnConnected(cl)
 		}
 
-		<-cl.done
+		<-cl.Done
 
-		if cl.connCallback != nil {
+		if cl.ConnCallback != nil {
 			// 关闭回调
-			cl.connCallback.OnDisconnected(cl)
+			cl.ConnCallback.OnDisconnected(cl)
 		}
 	}()
 }
@@ -76,13 +76,13 @@ func (cl *UdpConn)Start(){
  * @brief: 发送处理流程
  */
 func (cl *UdpConn)startSendProcess() {
-	cl.sender.Consume(func(data interface{}) bool {
+	cl.Sender.Consume(func(data interface{}) bool {
 		if data != nil{
 			if bytess, ok := data.([]byte); ok{
-				cl.conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
-				if _, err := cl.conn.WriteToUDP(bytess, cl.udpAddr); err != nil {
+				cl.Conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
+				if _, err := cl.Conn.WriteToUDP(bytess, cl.UdpAddr); err != nil {
 					glog.Errorln("conn.Write", err.Error())
-					cl.done <- true
+					cl.Done <- true
 					return false
 				}
 			}

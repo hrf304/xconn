@@ -13,30 +13,30 @@ import (
  * @brief: 连接
  */
 type TcpConn struct {
-	baseConn
-	conn         net.Conn             // 连接
+	common.BaseConn
+	Conn         net.Conn             // 连接
 }
 
 func newTcpConn(conn net.Conn, config *common.Config)*TcpConn {
 	ci := &TcpConn{
-		conn:  conn,
+		Conn:  conn,
 	}
-	ci.id = uuid.New().String()
-	ci.remoteAddress = conn.RemoteAddr().String()
-	ci.localAddr = conn.LocalAddr().String()
-	ci.sender = tools.NewDataTransport(1, config.SendChanSize)
-	ci.receiver = tools.NewDataTransport(1, config.RecvChanSize)
-	ci.done = make(chan bool, 1)
-	ci.timeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
+	ci.Id = uuid.New().String()
+	ci.RemoteAddress = conn.RemoteAddr().String()
+	ci.LocalAddr = conn.LocalAddr().String()
+	ci.Sender = tools.NewDataTransport(1, config.SendChanSize)
+	ci.Receiver = tools.NewDataTransport(1, config.RecvChanSize)
+	ci.Done = make(chan bool, 1)
+	ci.TimeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
 	if config.BufSize <= 0{
 		config.BufSize = 1024
 	}
-	ci.recvBufSize = config.BufSize
-	ci.connCallback = config.ConnCallback
-	ci.dataSplitter = config.DataSplitter
-	ci.packetHandler = config.PacketHandler
-	ci.label = config.Label
-	ci.iconn = ci
+	ci.RecvBufSize = config.BufSize
+	ci.ConnCallback = config.ConnCallback
+	ci.DataSplitter = config.DataSplitter
+	ci.PacketHandler = config.PacketHandler
+	ci.Label = config.Label
+	ci.IConn = ci
 
 	return ci
 }
@@ -48,29 +48,29 @@ func (cl *TcpConn)Start(){
 			cl.Close()
 		}()
 
-		cl.startDataProcess()
+		cl.StartDataProcess()
 		cl.startSendProcess()
 		cl.startRecvProcess()
 
-		if cl.connCallback != nil {
+		if cl.ConnCallback != nil {
 			// 新连接回调
-			cl.connCallback.OnConnected(cl)
+			cl.ConnCallback.OnConnected(cl)
 		}
 
-		<-cl.done
+		<-cl.Done
 
-		if cl.connCallback != nil {
+		if cl.ConnCallback != nil {
 			// 关闭回调
-			cl.connCallback.OnDisconnected(cl)
+			cl.ConnCallback.OnDisconnected(cl)
 		}
 	}()
 }
 
 func (cl *TcpConn)Close(){
-	cl.baseConn.Close()
+	cl.Close()
 
-	if cl.conn != nil{
-		cl.conn.Close()
+	if cl.Conn != nil{
+		cl.Conn.Close()
 	}
 }
 
@@ -78,13 +78,13 @@ func (cl *TcpConn)Close(){
  * @brief: 发送处理流程
  */
 func (cl *TcpConn)startSendProcess() {
-	cl.sender.Consume(func(data interface{}) bool {
+	cl.Sender.Consume(func(data interface{}) bool {
 		if data != nil{
 			if bytess, ok := data.([]byte); ok{
-				cl.conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
-				if _, err := cl.conn.Write(bytess); err != nil {
+				cl.Conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
+				if _, err := cl.Conn.Write(bytess); err != nil {
 					glog.Errorln("conn.Write", err.Error())
-					cl.done <- true
+					cl.Done <- true
 					return false
 				}
 			}
@@ -100,32 +100,32 @@ func (cl *TcpConn)startSendProcess() {
 func (cl *TcpConn)startRecvProcess(){
 	go func() {
 		defer func() {
-			cl.done <- true
+			cl.Done <- true
 		}()
 
-		recvBuffer := make([]byte, cl.recvBufSize)
+		recvBuffer := make([]byte, cl.RecvBufSize)
 		ringBuf := tools.NewRingBuffer(65535)
 		for {
-			i, err := cl.conn.Read(recvBuffer) // 读取数据
+			i, err := cl.Conn.Read(recvBuffer) // 读取数据
 			if err != nil {
-				glog.Errorln(cl.label, "读取客户端数据错误:", err.Error())
-				if cl.connCallback != nil{
+				glog.Errorln(cl.Label, "读取客户端数据错误:", err.Error())
+				if cl.ConnCallback != nil{
 					// 新连接回调
-					cl.connCallback.OnError(cl, err)
+					cl.ConnCallback.OnError(cl, err)
 				}
 				break
 			}
 			i, err = ringBuf.Write(recvBuffer[0:i])
 			if err != nil {
-				glog.Errorln(cl.label, "写入数据到本地换成buf错误:", err.Error())
+				glog.Errorln(cl.Label, "写入数据到本地换成buf错误:", err.Error())
 				break
 			}
 
 			// 处理数据
-			cl.timeoutCheck.Tick()
+			cl.TimeoutCheck.Tick()
 
-			if cl.dataSplitter != nil {
-				ps, left, err := cl.dataSplitter.Split(ringBuf.Bytes(), cl)
+			if cl.DataSplitter != nil {
+				ps, left, err := cl.DataSplitter.Split(ringBuf.Bytes(), cl)
 				if err != nil {
 					glog.Errorln("getter get err", err.Error())
 					ringBuf.Reset()
@@ -133,7 +133,7 @@ func (cl *TcpConn)startRecvProcess(){
 				}
 				if ps != nil {
 					for i := range ps {
-						cl.receiver.Produce(ps[i])
+						cl.Receiver.Produce(ps[i])
 					}
 				}
 
@@ -143,7 +143,7 @@ func (cl *TcpConn)startRecvProcess(){
 					ringBuf.Write(left)
 				}
 			}else{
-				cl.receiver.Produce(ringBuf.Bytes())
+				cl.Receiver.Produce(ringBuf.Bytes())
 				ringBuf.Reset()
 			}
 		}
