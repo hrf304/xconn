@@ -14,13 +14,11 @@ type BaseConn struct {
 	RemoteAddress string               // 地址
 	LocalAddr     string               // 本地地址
 	Sender        *tools.DataTransport // 发送队列
-	Receiver      *tools.DataTransport // 接收队列
 	TimeoutCheck  *tools.TimeoutCheck  // 超时检测
 	Done          chan bool            // 标识是否完成
 	RecvBufSize   int                  // 接收缓冲区大小
 	ConnCallback  ConnCallback         // 服务端
-	DataSplitter  DataSplitter         // 数据获取（分包器）
-	PacketHandler PacketHandler        // 包解析器
+	DataHandler DataHandler        // 包解析器
 	Label         string               // 标签
 	Tag           sync.Map             // 自定义数据
 	IConn         IConn
@@ -42,19 +40,9 @@ func (cl *BaseConn)Send(data []byte){
 	cl.Sender.Produce(data)
 }
 
-/**
- * @brief:接收到数据
- */
-func (cl *BaseConn)Recv(data []byte) {
-	// 处理数据
-	cl.TimeoutCheck.Tick()
-	cl.Receiver.Produce(data)
-}
-
 func (cl *BaseConn)Close(){
 	cl.TimeoutCheck.Cancel()
 	cl.Sender.Cancel()
-	cl.Receiver.Cancel()
 }
 
 func (cl *BaseConn)GetTag(key string)interface{}{
@@ -102,20 +90,5 @@ func (cl *BaseConn)StartTimeoutCheckProcess() {
 		if b {
 			cl.Done <- true
 		}
-	})
-}
-/**
- * @brief: 启动数据处理流程
- */
-func (cl *BaseConn)StartDataProcess(){
-	cl.Receiver.Consume(func(data interface{}) bool {
-		if data != nil{
-			if bytess, ok := data.([]byte); ok{
-				if cl.PacketHandler != nil{
-					cl.PacketHandler.Handle(bytess, cl.IConn)
-				}
-			}
-		}
-		return true
 	})
 }

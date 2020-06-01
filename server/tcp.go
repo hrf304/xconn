@@ -25,7 +25,6 @@ func newTcpConn(conn net.Conn, config *common.Config)*TcpConn {
 	ci.RemoteAddress = conn.RemoteAddr().String()
 	ci.LocalAddr = conn.LocalAddr().String()
 	ci.Sender = tools.NewDataTransport(1, config.SendChanSize)
-	ci.Receiver = tools.NewDataTransport(1, config.RecvChanSize)
 	ci.Done = make(chan bool, 1)
 	ci.TimeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
 	if config.BufSize <= 0{
@@ -33,8 +32,7 @@ func newTcpConn(conn net.Conn, config *common.Config)*TcpConn {
 	}
 	ci.RecvBufSize = config.BufSize
 	ci.ConnCallback = config.ConnCallback
-	ci.DataSplitter = config.DataSplitter
-	ci.PacketHandler = config.PacketHandler
+	ci.DataHandler = config.DataHandler
 	ci.Label = config.Label
 	ci.IConn = ci
 
@@ -48,7 +46,6 @@ func (cl *TcpConn)Start(){
 			cl.Close()
 		}()
 
-		cl.StartDataProcess()
 		cl.startSendProcess()
 		cl.startRecvProcess()
 
@@ -124,17 +121,13 @@ func (cl *TcpConn)startRecvProcess(){
 			// 处理数据
 			cl.TimeoutCheck.Tick()
 
-			if cl.DataSplitter != nil {
-				ps, left, err := cl.DataSplitter.Split(ringBuf.Bytes(), cl)
+			// handle data
+			if cl.DataHandler != nil {
+				left, err := cl.DataHandler.Handle(ringBuf.Bytes(), cl)
 				if err != nil {
 					glog.Errorln("getter get err", err.Error())
 					ringBuf.Reset()
 					continue
-				}
-				if ps != nil {
-					for i := range ps {
-						cl.Receiver.Produce(ps[i])
-					}
 				}
 
 				// 未处理完的重新写入
@@ -143,8 +136,7 @@ func (cl *TcpConn)startRecvProcess(){
 					ringBuf.Write(left)
 				}
 			}else{
-				cl.Receiver.Produce(ringBuf.Bytes())
-				ringBuf.Reset()
+				glog.Errorln("data handler is nil")
 			}
 		}
 	}()

@@ -37,7 +37,6 @@ func newWsConn(conn *websocket.Conn, ctx *gin.Context, config *common.Config, pa
 	}
 	ci.Id = uuid.New().String()
 	ci.Sender = tools.NewDataTransport(1, config.SendChanSize)
-	ci.Receiver = tools.NewDataTransport(1, config.RecvChanSize)
 	ci.Done = make(chan bool, 1)
 	ci.TimeoutCheck = tools.NewTimeoutCheck(config.Interval, config.Timeout)
 	if config.BufSize <= 0{
@@ -46,8 +45,7 @@ func newWsConn(conn *websocket.Conn, ctx *gin.Context, config *common.Config, pa
 	ci.RecvBufSize = config.BufSize
 	ci.ConnCallback = config.ConnCallback
 	ci.Label = config.Label
-	ci.DataSplitter = config.DataSplitter
-	ci.PacketHandler = config.PacketHandler
+	ci.DataHandler = config.DataHandler
 	ci.RemoteAddress = conn.RemoteAddr().String()
 	ci.LocalAddr = conn.LocalAddr().String()
 	ci.IConn = ci
@@ -65,7 +63,6 @@ func (cl *WsConn)Start() {
 			cl.Close()
 		}()
 
-		cl.StartDataProcess()
 		cl.startSendProcess()
 		cl.startRecvProcess()
 
@@ -155,7 +152,11 @@ func (cl *WsConn)startRecvProcess() {
 			// 处理数据
 			cl.TimeoutCheck.Tick()
 			// websocket 不需要处理粘包问题
-			cl.Receiver.Produce(data)
+			if cl.DataHandler != nil{
+				cl.DataHandler.Handle(data, cl)
+			}else{
+				glog.Errorln("udp conn data handler is nil")
+			}
 		}
 	}()
 }

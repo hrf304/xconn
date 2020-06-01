@@ -126,12 +126,12 @@ func (ts *Server)startUdpServer(){
 			copyBuf := copyBytes(buf[:n])
 			if v, ok := ts.connMap.Load(radd.String()); ok {
 				if ccon, ok1 := v.(*UdpConn); ok1 {
-					ccon.Recv(copyBuf)
+					ccon.recv(copyBuf)
 				}
 			} else {
 				ccon := newUdpConn(conn, radd, ts.config)
 				ccon.Start()
-				ccon.Recv(copyBuf)
+				ccon.recv(copyBuf)
 			}
 		}
 	}()

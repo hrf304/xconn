@@ -5,31 +5,31 @@ import (
 	"time"
 )
 
-/**
- * 数据拆分接口，处理粘包问题
- */
-type DataSplitter interface {
-	/**
-	 * @brief: 包解析器接口
-	 * @param1 bytess: 当前接收到的数据
-	 * @param2 conn: 当前conn
-	 * @return1: 拆分获得包内容，多个
-	 * @return2: 剩余数据
-	 * @return3: 错误信息
-	 */
-	Split([]byte, IConn)([][]byte, []byte, error)
-}
+///**
+// * 数据拆分接口，处理粘包问题
+// */
+//type DataSplitter interface {
+//	/**
+//	 * @brief: 包解析器接口
+//	 * @param1 bytess: 当前接收到的数据
+//	 * @param2 conn: 当前conn
+//	 * @return1: 拆分获得包内容，多个
+//	 * @return2: 剩余数据
+//	 * @return3: 错误信息
+//	 */
+//	Split([]byte, IConn)([][]byte, []byte, error)
+//}
 
 /**
  * 数据包处理接口
  */
-type PacketHandler interface {
+type DataHandler interface {
 	/**
 	 * @brief: 数据包处理接口
 	 * @param1: 数据包
 	 * @param2: 当前连接
 	 */
-	Handle([]byte, IConn)
+	Handle([]byte, IConn)([]byte, error)
 }
 
 /**
@@ -67,8 +67,7 @@ type Config struct {
 	BufSize       int               // 接收缓冲区大小
 	SendChanSize  int               // 发送通道大小
 	RecvChanSize  int               // 接收通道大小
-	DataSplitter  DataSplitter      // tcp 连接处理接口
-	PacketHandler PacketHandler     // 包解析器
+	DataHandler DataHandler     // 包解析器
 	ConnCallback  ConnCallback      // 连接回调接口
 	Label         string            // 标签
 	WsUrls        map[string]string // key: path, value: text(或者binary), 当Type为ws有效
